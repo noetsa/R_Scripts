@@ -1,0 +1,153 @@
+library(iNEXT)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(Cairo)
+
+dataB<- read.delim("datafieldBsummer.txt")
+ara= filter(dataB, ORDER == "Araneae")
+col= filter(dataB, ORDER == "Coleoptera")
+allsp = dataB
+
+ara.ab = ara%>% group_by(PLOT, MoFo) %>% summarise(Total_Abundance = sum(Total))
+col.ab = col%>% group_by(PLOT, MoFo) %>% summarise(Total_Abundance = sum(Total))
+dataB.ab = allsp%>% group_by(PLOT, MoFo) %>% summarise(Total_Abundance = sum(Total))
+
+
+ara.ab.mat=ara.ab %>% pivot_wider(names_from = MoFo, values_from = Total_Abundance)
+ara.ab.mat[is.na(ara.ab.mat)] <- 0
+col.ab.mat=col.ab %>% pivot_wider(names_from = MoFo, values_from = Total_Abundance)
+col.ab.mat[is.na(col.ab.mat)] <- 0
+dataB.ab.mat=dataB.ab %>% pivot_wider(names_from = MoFo, values_from = Total_Abundance)
+dataB.ab.mat[is.na(dataB.ab.mat)] <- 0
+
+tara.ab.mat=t(ara.ab.mat)
+tcol.ab.mat=t(col.ab.mat)
+tdataB.ab.mat=t(dataB.ab.mat)
+
+
+colnames(tdataB.ab.mat) <- as.matrix(tdataB.ab.mat[1, ])
+colnames(tara.ab.mat) <- as.matrix(tara.ab.mat[1, ])
+colnames(tcol.ab.mat) <- as.matrix(tcol.ab.mat[1, ])
+
+tara.ab.mat <- tara.ab.mat[-1, ]
+tcol.ab.mat <- tcol.ab.mat[-1, ]
+tdataB.ab.mat <- tdataB.ab.mat[-1, ]
+
+
+class(tdataB.ab.mat) = "numeric"
+class(tcol.ab.mat) = "numeric"
+class(tara.ab.mat) = "numeric"
+
+
+in.ara= iNEXT(tara.ab.mat,  q=c(0,1,2,3),  datatype="abundance")
+in.col= iNEXT(tcol.ab.mat,  q=c(0,1,2,3),  datatype="abundance")
+in.allSp= iNEXT(tdataB.ab.mat,  q=c(0,1,2,3),  datatype="abundance")
+
+in.ara$DataInfo
+in.ara$AsyEst
+write.table(in.ara$iNextEst, file = "Ara_FieldB_Summer.txt", sep = "\t", row.names = TRUE, col.names = NA)
+
+in.col$DataInfo
+in.col$AsyEst
+write.table(in.col$iNextEst, file = "col_FieldB_Summer.txt", sep = "\t", row.names = TRUE, col.names = NA)
+
+in.allSp$DataInfo
+in.allSp$AsyEst
+write.table(in.allSp$iNextEst, file = "allSp_FieldB_Summer.txt", sep = "\t", row.names = TRUE, col.names = NA)
+
+
+##### 
+## Plots Hills numbers
+
+
+## Araneae
+
+datafigB<- read.delim("FigBSummer.txt")
+
+names(datafigB)
+
+levels(as.factor(datafigB$OrderSp))
+levels(as.factor(datafigB$order))
+
+ara= filter(datafigB, OrderSp == "Araneae")
+araq0= filter(ara, order == "0")
+araq1= filter(ara, order == "1")
+araq2= filter(ara, order == "2")
+araq3= filter(ara, order == "3")
+
+araq0C=araq0[1:10,] %>%
+  bind_rows(summarise(.,
+                      across(where(is.numeric), sum),
+                      across(where(is.character), ~"SumControlq0")))
+araq0T=araq0[11:20,] %>%
+  bind_rows(summarise(.,
+                      across(where(is.numeric), sum),
+                      across(where(is.character), ~"SumTraitq0")))
+
+
+araq1C=araq1[1:10,] %>%
+  bind_rows(summarise(.,
+                      across(where(is.numeric), sum),
+                      across(where(is.character), ~"SumControlq1")))
+araq1T=araq1[11:20,] %>%
+  bind_rows(summarise(.,
+                      across(where(is.numeric), sum),
+                      across(where(is.character), ~"SumTraitq1")))
+
+araq2C=araq2[1:10,] %>%
+  bind_rows(summarise(.,
+                      across(where(is.numeric), sum),
+                      across(where(is.character), ~"SumControlq2")))
+araq2T=araq2[11:20,] %>%
+  bind_rows(summarise(.,
+                      across(where(is.numeric), sum),
+                      across(where(is.character), ~"SumTraitq2")))
+araq3C=araq3[1:10,] %>%
+  bind_rows(summarise(.,
+                      across(where(is.numeric), sum),
+                      across(where(is.character), ~"SumControlq3")))
+araq3T=araq3[11:20,] %>%
+  bind_rows(summarise(.,
+                      across(where(is.numeric), sum),
+                      across(where(is.character), ~"SumTraitq3")))
+
+
+figARA = rbind ( araq0C[11,], araq0T[11,],
+                 araq1C[11,], araq1T[11,],
+                 araq2C[11,], araq2T[11,],
+                 araq3C[11,], araq3T[11,])
+
+figARA$Traite = c("Control", "traitement",
+                  "Control", "traitement",
+                  "Control", "traitement",
+                  "Control", "traitement")
+figARA$Hills = c("q0", "q0",
+                  "q1", "q1",
+                  "q2", "q2",
+                 "q3", "q3")
+names(figARA)
+
+p1=ggplot(figARA, aes(x=Hills, y=qD, group=Traite))+
+  geom_line(aes(colour = Traite), linetype = 1, size = 1)+
+  geom_point(aes(colour = Traite), size = 3)+
+  scale_colour_manual(values=c(Control="#07cde3",traitement="#07f213"))+
+  ylab ("Sum qD per plot")+ xlab("Hill's Numbers")+
+  ggtitle("Araneae")+
+  theme(
+    plot.title = element_text(color="black", size=12, face="bold"),
+    axis.title.x = element_text(color="black", size=16, face="bold"),
+    axis.title.y = element_text(color="black", size=16, face="bold"),
+    axis.text.x = element_text(face="bold", color="black",size=14),
+    axis.text.y = element_text(face="bold", color="black",size=14))
+p1
+
+ggsave("Araneae_FieldB_Summer.png", p1, height = 10, width = 7, dpi = 800)
+#or
+Cairo(300, 400, file="Araneae_FBSummer", type="png", bg="white")
+p1
+dev.off()
+
+
+
+
